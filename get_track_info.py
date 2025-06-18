@@ -43,28 +43,25 @@ def get_track_id(artist, title, token):
 
 def get_audio_features(track_id):
     
-    sp = Spotify(auth_manager=SpotifyOAuth(
+    auth_manager=SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
-    redirect_uri="http://127.0.0.1:8000",))
-
+    redirect_uri="http://127.0.0.1:8000",
+    )
+    code = auth_manager.get_authorization_code()
+    print(code)
+    
+    print(auth_manager.get_access_token())
+    sp =Spotify(auth=auth_manager.get_access_token())
+    
+    
     try:
-        res = sp.audio_features(tracks=[track_id])
-        print(res)
+        data = sp.audio_features(tracks=[track_id])
+        if not data:
+            return "Error"
     except Exception as e:
         print(e)
-# def get_track_by_id(id,token):
-#     res=None
-#     headers = {"Authorization":f"Bearer {token}"}
-#     url= f"https://api.spotify.com/v1/tracks/{id}"
-#     try:
-#         res = requests.get(url=url,headers=headers)
-#         res =res.json()
-#         parsed = json.dumps(res,indent=5)
-#         #print(parsed)
-#         print({res["artists"][0]["name"]:res["name"]})
-#     except Exception as e:
-#         print(e)
+
 # Main logic
 if __name__ == "__main__":
     token=get_access_token()
