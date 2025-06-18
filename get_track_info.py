@@ -1,59 +1,77 @@
 import requests
 import json
-cid="0f8d056acab64d9d88e4c8892d76d04c"
-sec="1c6c19e2d40745988b767e908b8e9508"
+from spotipy import SpotifyOAuth,Spotify
+CLIENT_ID = "0f8d056acab64d9d88e4c8892d76d04c"
+CLIENT_SECRET = "1c6c19e2d40745988b767e908b8e9508"
+
 def get_access_token():
     url = "https://accounts.spotify.com/api/token"
     headers = {
-    "Content-Type": "application/x-www-form-urlencoded"
+        "Content-Type": "application/x-www-form-urlencoded"
     }
-    data = { "grant_type":"client_credentials",
-            "client_id":"0f8d056acab64d9d88e4c8892d76d04c",
-            "client_secret":"1c6c19e2d40745988b767e908b8e9508"
-        
+    data = {
+        "grant_type": "client_credentials",
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET
     }
+    response = requests.post(url, headers=headers, data=data)
+    if response.status_code != 200:
+        print(f"Token request failed: {response.status_code} - {response.text}")
+        return None
+    return response.json()["access_token"]
+
+def get_track_id(artist, title, token):
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    params = {
+        "q": f"track:{title} artist:{artist}",
+        "type": "track",
+        "limit": 1
+    }
+    url = "https://api.spotify.com/v1/search"
+    response = requests.get(url, headers=headers, params=params)
+    if response.status_code != 200:
+        print(f"Search request failed: {response.status_code} - {response.text}")
+        return None
+    data = response.json()
+    items = data.get('tracks', {}).get('items', [])
+    if not items:
+        print("No track found.")
+        return None
+    return items[0]['id']
+
+def get_audio_features(track_id):
+    
+    sp = Spotify(auth_manager=SpotifyOAuth(
+    client_id=CLIENT_ID,
+    client_secret=CLIENT_SECRET,
+    redirect_uri="http://127.0.0.1:8000",))
+
     try:
-        response = requests.post(url=url,headers=headers,data=data)
-        data=response.json()
-        token=data['access_token']
+        res = sp.audio_features(tracks=[track_id])
+        print(res)
     except Exception as e:
         print(e)
-    return token
-    
+# def get_track_by_id(id,token):
+#     res=None
+#     headers = {"Authorization":f"Bearer {token}"}
+#     url= f"https://api.spotify.com/v1/tracks/{id}"
+#     try:
+#         res = requests.get(url=url,headers=headers)
+#         res =res.json()
+#         parsed = json.dumps(res,indent=5)
+#         #print(parsed)
+#         print({res["artists"][0]["name"]:res["name"]})
+#     except Exception as e:
+#         print(e)
+# Main logic
+if __name__ == "__main__":
+    token=get_access_token()
+    artist = input("artist: ")
+    track = input("track: ")
+    id = get_track_id(artist=artist,title=track,token=token)
 
-access_token = get_access_token()
-
-def get_track_id(artist:str,song_title:str):
-    song = song_title.strip()
-    artist=artist.strip()
-    token = get_access_token()
-    headers= {
-        "Authorization" : f'Bearer {token}',
-        "Content-Type" :"application/json"
-    }
-    url = 'https://api.spotify.com/v1/search'
-    params={
-        'q': f'track:{song} artist:{artist}',
-        'type':'track',
-        'limit':1}
-    try:
-        
-        response = requests.get(url=url,headers=headers,params=params)
-        if response.status_code != 200:
-            print(f'error: {response.status_code} : {response.text}')
-            return
-        res_data=response.json()
-        pretty = json.dumps(res_data['tracks']['items'][0].get("id"),indent=3)
-        return pretty
-        
-    except Exception as e:
-        print(e)
-
-def get_track_attributes(track_id:str):
-    pass
-    
-    
-artist=input("artist: ")
-title=input("song title: ")
-track_id=get_track_id(artist=artist,song_title=title)
-print(track_id)
+    #print(get_track_by_id(id,token=get_access_token()))
+    #print(id)
+    get_audio_features(id)
