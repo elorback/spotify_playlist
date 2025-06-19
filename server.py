@@ -1,17 +1,28 @@
-from flask import Flask, request, redirect
-import spotipy
+
+
+
+
+from flask import Flask, request, redirect, session
+from spotipy import Spotify
 from spotipy.oauth2 import SpotifyOAuth
+import os
 
 app = Flask(__name__)
+app.secret_key = "your_secret_key"  # Required for session storage
 
+
+SCOPE = "user-top-read"  # or any scope you need
 CLIENT_ID = "0f8d056acab64d9d88e4c8892d76d04c"
 CLIENT_SECRET = "1c6c19e2d40745988b767e908b8e9508"
-REDIRECT_URI = 'https://127.0.0.1:8000/callback'
+REDIRECT_URI = 'http://127.0.0.1:8000/callback'
+
 
 sp_oauth = SpotifyOAuth(
     client_id=CLIENT_ID,
     client_secret=CLIENT_SECRET,
     redirect_uri=REDIRECT_URI,
+    scope=SCOPE,
+    show_dialog=True,
 )
 
 @app.route("/")
@@ -21,31 +32,36 @@ def login():
 
 @app.route("/callback")
 def callback():
-    code = request.args.get('code')
-    error = request.args.get('error')
+    code = request.args.get("code")
+    error = request.args.get("error")
 
     if error:
-        return f"Error: {error}"
+        return f"Spotify Authorization Error: {error}"
 
-    # Exchange the code for an access token
-    token_info = sp_oauth.get_access_token(code=code)
+    token_info = sp_oauth.get_access_token(code)
+    t=sp_oauth.get_cached_token()
+    access_token = token_info["access_token"] if isinstance(token_info, dict) else token_info
+
 
     if not token_info:
-        return "Failed to get access token. Try logging in again."
+        return "Could not get access token."
 
-    access_token = token_info['access_token']  # In recent spotipy versions, get_access_token returns token string directly
-    print(access_token)
-    sp = spotipy.Spotify(auth=access_token)
-    features=None
-    track_id = "7LRMbd3LEoV5wZJvXT1Lwb"  # Replace with any track id
+    access_token = token_info["access_token"]
+    print(f"access token: {access_token}")
+
+    # Save token in session or use it directly
+    session["token_info"] = token_info
+
+    # Use token to create Spotify client
+    sp = Spotify(auth_manager=sp_oauth)
+
+    # Example: Get audio features for a hardcoded track
+    track_id = "7LRMbd3LEoV5wZJvXT1Lwb"
     try:
         features = sp.audio_features([track_id])
-        print(features)
+        return f"<pre>{features}</pre>"
     except Exception as e:
-        print(e)
-        print(features)
-    return features
-
+        return f"Error: {e}"
 
 if __name__ == "__main__":
-    app.run(debug=True, port=8000)
+    app.run(debug=True,port=8000)
